@@ -3,7 +3,7 @@
 
 ### **Aluno:** José Vinícius  
 ### **Disciplina:** Redes de Computadores  
-### **Curso:** Engenharia da Computação
+### **Curso:** Engenharia da Computação - UABJ
 ### **Professor:** Ygor Amaral
 
 ---

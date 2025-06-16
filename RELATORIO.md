@@ -3,10 +3,10 @@
 ```markdown
 # Relatório Técnico
 
-### **Aluno:** José Vinícius  
-### **Disciplina:** Redes de Computadores  
-### **Curso:** Engenharia da Computação
-### **Professor:** Ygor Amaral
+## **Aluno:** José Vinícius  
+## **Disciplina:** Redes de Computadores  
+## **Curso:** Engenharia da Computação
+## **Professor:** Ygor Amaral
 
 ---
 

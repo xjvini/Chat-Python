@@ -6,13 +6,6 @@
 ### **Curso:** Engenharia da Computação - UABJ
 ### **Professor:** Ygor Amaral
 
----
-
-# Relatório Técnico do Projeto: Chat Cliente-Servidor
-
-### **Curso:** Bacharelado em Engenharia da Computação
-### **Disciplina:** Redes de Computadores
-### **Professor:** Ygor Amaral
 
 ---
 

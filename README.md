@@ -2,7 +2,7 @@
 
 Este projeto implementa um sistema de chat cliente-servidor desenvolvido em Python. A aplicação utiliza comunicação via sockets TCP/IP, interface gráfica desktop com Tkinter, e banco de dados SQLite com persistência de mensagens e usuários.
 
-O servidor gerencia múltiplas conexões simultâneas por meio de threads, oferecendo autenticação segura com bcrypt, envio de mensagens públicas, privadas e em grupos (salas). Além de armazenamento e entrega de mensagens offline, recursos de presença (lista de usuários online/offline), indicador em tempo real de digitação e reconexão automática em caso de falhas de conexão.
+O servidor gerencia múltiplas conexões simultâneas por meio de threads, oferecendo autenticação segura com bcrypt, envio de mensagens públicas e privadas. Além de armazenamento e entrega de mensagens offline, recursos de presença (lista de usuários online/offline), indicador em tempo real de digitação (somente em chats privados) e reconexão automática em caso de falhas de conexão.
 
 
 ## Arquitetura Geral
@@ -28,7 +28,7 @@ O servidor gerencia múltiplas conexões simultâneas por meio de threads, ofere
 - Registro com verificação de usuário único.
 - Login seguro com senhas criptografadas.
 - Lista de contatos com status online/offline.
-- Envio de mensagens públicas, privadas e por sala.
+- Envio de mensagens públicas e privadas.
 - Persistência de mensagens offline.
 - Indicador de digitação em tempo real.
 - Reconexão automática em caso de falha de rede.

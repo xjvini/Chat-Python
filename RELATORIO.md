@@ -1,6 +1,3 @@
-## ** `Relatório técnico`**
-
-
 # Relatório Técnico
 
 ## **Aluno:** José Vinícius  
@@ -27,24 +24,24 @@ O sistema foi projetado seguindo o modelo cliente-servidor, onde um servidor cen
 O servidor foi construído em Python como uma aplicação multithread, projetado para ser robusto e escalável no gerenciamento de múltiplas conexões simultâneas. Sua arquitetura é modular, dividida da seguinte forma:
 
 * **Módulo Principal (`ChatServer`)**: Classe que orquestra toda a operação do servidor. É responsável por iniciar o socket, gerenciar o ciclo de vida do servidor e coordenar os demais módulos.
-* [cite_start]**Núcleo de Rede (`socket`, `ThreadPoolExecutor`)**: Utiliza a biblioteca `socket` para comunicação TCP/IP. [cite_start]Ao receber uma nova conexão, a tarefa de gerenciá-la é delegada a um pool de threads (`ThreadPoolExecutor`), o que permite ao servidor aceitar novos clientes sem bloquear.
+* **Núcleo de Rede (`socket`, `ThreadPoolExecutor`)**: Utiliza a biblioteca `socket` para comunicação TCP/IP. Ao receber uma nova conexão, a tarefa de gerenciá-la é delegada a um pool de threads (`ThreadPoolExecutor`), o que permite ao servidor aceitar novos clientes sem bloquear.
 * **Módulo de Processamento de Mensagens (`queue.Queue`)**: Para evitar gargalos e condições de corrida, todas as mensagens recebidas dos clientes são colocadas em uma fila central. Uma única thread trabalhadora (`MessageQueueThread`) processa essas mensagens de forma sequencial, garantindo que a lógica de negócios seja executada de maneira ordenada e separada das operações de rede (I/O).
-* **Módulo de Autenticação**: Composto pelas funções `register_user` e `authenticate_user`. [cite_start]Este módulo interage com o banco de dados para validar credenciais ou registrar novos usuários. A segurança é reforçada pelo uso da biblioteca `bcrypt` para o hashing de senhas.
-* [cite_start]**Módulo de Persistência (`sqlite3`)**: Responsável por toda a interação com o banco de dados `chat1.db`. Ele gerencia três tabelas principais:
+* **Módulo de Autenticação**: Composto pelas funções `register_user` e `authenticate_user`. Este módulo interage com o banco de dados para validar credenciais ou registrar novos usuários. A segurança é reforçada pelo uso da biblioteca `bcrypt` para o hashing de senhas.
+* **Módulo de Persistência (`sqlite3`)**: Responsável por toda a interação com o banco de dados `chat1.db`. Ele gerencia três tabelas principais:
     1.  `users`: Armazena os dados de login dos usuários.
     2.  `chat_history`: Guarda o histórico de mensagens das salas públicas.
-    3.  [cite_start]`offline_messages`: Armazena mensagens privadas destinadas a usuários que não estão online.
-* **Módulo de Gerenciamento de Conexões**: Inclui uma thread de limpeza (`CleanupThread`) que implementa um mecanismo de "ping-pong" para verificar a atividade dos clientes. [cite_start]Conexões inativas por um determinado período são finalizadas para liberar recursos e tratar falhas.
+    3.  `offline_messages`: Armazena mensagens privadas destinadas a usuários que não estão online.
+* **Módulo de Gerenciamento de Conexões**: Inclui uma thread de limpeza (`CleanupThread`) que implementa um mecanismo de "ping-pong" para verificar a atividade dos clientes. Conexões inativas por um determinado período são finalizadas para liberar recursos e tratar falhas.
 
 ### 1.2. Arquitetura do Cliente
 
-[cite_start]O cliente é uma aplicação desktop com interface gráfica (GUI) desenvolvida em Python com `tkinter`. [cite_start]Sua arquitetura também é multithread para garantir que a interface do usuário permaneça sempre responsiva, mesmo durante operações de rede que podem demorar.
+O cliente é uma aplicação desktop com interface gráfica (GUI) desenvolvida em Python com `tkinter`. Sua arquitetura também é multithread para garantir que a interface do usuário permaneça sempre responsiva, mesmo durante operações de rede que podem demorar.
 
 * **Módulo Principal (`ChatClient`)**: Classe que gerencia toda a lógica do cliente, o estado da conexão e a interação entre a GUI e os módulos de rede.
-* [cite_start]**Módulo de Interface Gráfica (GUI com `tkinter`)**: Responsável por construir e gerenciar todos os elementos visuais da aplicação, como a tela de login, a lista de contatos e a janela de chat.
+* **Módulo de Interface Gráfica (GUI com `tkinter`)**: Responsável por construir e gerenciar todos os elementos visuais da aplicação, como a tela de login, a lista de contatos e a janela de chat.
 * **Módulos de Rede (`threading`)**: Para evitar o congelamento da GUI, as operações de rede são executadas em threads separadas:
     * `AuthThread`: Gerencia as requisições de login e registro.
-    * [cite_start]`ReceiverThread`: Fica em um loop contínuo, escutando por mensagens recebidas do servidor.
+    * `ReceiverThread`: Fica em um loop contínuo, escutando por mensagens recebidas do servidor.
     * `PingThread`: Envia pings periódicos ao servidor para manter a conexão ativa.
 * **Ponte de Comunicação GUI-Rede (`ui_queue`)**: Para atualizar a interface gráfica a partir das threads de rede de forma segura, o cliente utiliza uma fila (`ui_queue`). A thread de rede adiciona uma "tarefa" à fila (ex: "exibir nova mensagem"), e o loop principal da GUI a executa, evitando erros de concorrência.
 
@@ -52,7 +49,7 @@ O servidor foi construído em Python como uma aplicação multithread, projetado
 
 ## 2. Protocolo de Comunicação
 
-[cite_start]Para a comunicação entre cliente e servidor, foi desenvolvido um protocolo de aplicação simples sobre TCP. [cite_start]As mensagens são objetos JSON, codificados em UTF-8 e delimitados por um caractere de nova linha (`\n`) para indicar o fim de um pacote.
+Para a comunicação entre cliente e servidor, foi desenvolvido um protocolo de aplicação simples sobre TCP. [cite_start]As mensagens são objetos JSON, codificados em UTF-8 e delimitados por um caractere de nova linha (`\n`) para indicar o fim de um pacote.
 
 A seguir, a estrutura detalhada de cada tipo de mensagem:
 
@@ -75,21 +72,21 @@ A seguir, a estrutura detalhada de cada tipo de mensagem:
 
 ## 3. Implementação dos Requisitos Funcionais
 
-[cite_start]Todos os requisitos funcionais foram atendidos conforme a especificação do projeto.
+Todos os requisitos funcionais foram atendidos conforme a especificação do projeto.
 
 * **Registro e Autenticação**: O fluxo começa na GUI do cliente, que envia as credenciais para o servidor. O servidor valida os dados contra o banco de dados SQLite, usando `bcrypt` para segurança de senhas, e retorna uma resposta de sucesso ou falha.
-* [cite_start]**Lista de Contatos**: Após o login, o cliente solicita e recebe a lista de todos os usuários cadastrados. [cite_start]A lista é exibida graficamente, e o status (online/offline) é diferenciado por cores para melhor usabilidade.
+* **Lista de Contatos**: Após o login, o cliente solicita e recebe a lista de todos os usuários cadastrados. A lista é exibida graficamente, e o status (online/offline) é diferenciado por cores para melhor usabilidade.
 * **Troca de Mensagens**: O cliente envia mensagens privadas ou públicas em formato JSON. O servidor atua como um roteador: ele identifica o tipo de mensagem, adiciona informações relevantes (remetente, timestamp) e a encaminha para o(s) destinatário(s) correto(s) se estiverem online.
-* [cite_start]**Mensagens Offline**: Se uma mensagem privada é enviada a um usuário offline, o servidor a armazena na tabela `offline_messages`. [cite_start]Assim que o usuário se conecta, o servidor envia todas as mensagens pendentes e as marca como entregues.
-* [cite_start]**Indicadores**: O status "online/offline" é derivado da lista de contatos. [cite_start]O indicador "digitando..." é implementado com eventos `TYPING_START` e `TYPING_STOP` trocados entre os clientes, com o servidor atuando como intermediário. [cite_start]Um temporizador de 2 segundos no cliente encerra o status de digitação automaticamente, conforme sugerido.
+* **Mensagens Offline**: Se uma mensagem privada é enviada a um usuário offline, o servidor a armazena na tabela `offline_messages`. Assim que o usuário se conecta, o servidor envia todas as mensagens pendentes e as marca como entregues.
+* **Indicadores**: O status "online/offline" é derivado da lista de contatos. O indicador "digitando..." é implementado com eventos `TYPING_START` e `TYPING_STOP` trocados entre os clientes, com o servidor atuando como intermediário. Um temporizador de 2 segundos no cliente encerra o status de digitação automaticamente, conforme sugerido.
 
 ---
 
 ## 4. Gerenciamento de Conexões e Concorrência
 
-[cite_start]O gerenciamento de múltiplas conexões e a prevenção de conflitos de concorrência foram pontos centrais no desenvolvimento.
+O gerenciamento de múltiplas conexões e a prevenção de conflitos de concorrência foram pontos centrais no desenvolvimento.
 
-* **Atendimento a Múltiplos Clientes**: O servidor utiliza um `ThreadPoolExecutor` para gerenciar a concorrência. A thread principal do servidor fica em um loop, aceitando novas conexões TCP. Cada nova conexão é entregue a uma thread do pool, que executa a lógica de comunicação para aquele cliente. [cite_start]Isso isola os clientes uns dos outros e permite que o servidor atenda a um grande número de usuários simultaneamente.
+* **Atendimento a Múltiplos Clientes**: O servidor utiliza um `ThreadPoolExecutor` para gerenciar a concorrência. A thread principal do servidor fica em um loop, aceitando novas conexões TCP. Cada nova conexão é entregue a uma thread do pool, que executa a lógica de comunicação para aquele cliente. Isso isola os clientes uns dos outros e permite que o servidor atenda a um grande número de usuários simultaneamente.
 * **Tratamento de Falhas de Conexão**: A robustez do sistema é garantida por dois mecanismos:
     1.  **Mecanismo Reativo**: Blocos `try...except` em torno de todas as operações de `socket.send()` e `socket.recv()` capturam exceções (`ConnectionError`, `OSError`), permitindo que o sistema remova o cliente desconectado de forma limpa.
     2.  **Mecanismo Proativo**: Um sistema de "Ping/Pong" e um timeout no servidor detectam clientes que ficaram silenciosos (ex: por perda de rede) e os removem da lista de clientes ativos.
@@ -99,12 +96,13 @@ A seguir, a estrutura detalhada de cada tipo de mensagem:
 
 ## 5. Desafios e Aprendizados
 
-[cite_start]O desenvolvimento do projeto proporcionou uma experiência prática valiosa sobre os conceitos teóricos da disciplina.
+O desenvolvimento do projeto proporcionou uma experiência prática valiosa sobre os conceitos teóricos da disciplina.
 
 ### Principais Desafios
 
 1.  **Concorrência na GUI**: O desafio mais significativo foi integrar as operações de rede (que são bloqueantes) com a interface gráfica `tkinter` (que opera em uma única thread). A solução foi a implementação do padrão de "fila de mensagens" (`ui_queue`), que permitiu a comunicação segura entre as threads de rede e a thread da GUI.
 2.  **Framing de Mensagens**: Garantir que o receptor lesse mensagens JSON completas, já que o TCP é um protocolo de stream, foi um desafio inicial. A solução foi adotar um delimitador (`\n`) e um buffer de recebimento para montar os pacotes antes de processá-los.
+3.  **Inclusão do sistema multiconexão: Houve o surgimento de bugs que ocasionaram a desconexão de usuários sempre que 2+ tentavam conexão com o servidor. A solução foi otimizar a forma que o servidor compreenderia a solicitação dos clientes e como o cliente se comportaria durante o atraso de resposta do servidor.
 
 ### Principais Aprendizados
 
@@ -116,7 +114,7 @@ A seguir, a estrutura detalhada de cada tipo de mensagem:
 
 ## 6. Limitações e Bugs Conhecidos
 
-[cite_start]Apesar de funcional, o sistema atual possui limitações que poderiam ser endereçadas em versões futuras.
+Apesar de funcional, o sistema atual possui limitações que poderiam ser endereçadas em versões futuras.
 
 * **Comunicação Não Criptografada**: A maior limitação de segurança é que toda a comunicação, incluindo senhas durante o login, ocorre em texto plano. Em um ambiente real, seria indispensável implementar criptografia TLS/SSL para proteger os dados em trânsito.
 * **Falta de Salas de Chat Múltiplas**: O sistema suporta apenas uma sala pública ("Geral") e chats privados. Não há funcionalidade para que os usuários criem, descubram ou participem de outras salas temáticas.

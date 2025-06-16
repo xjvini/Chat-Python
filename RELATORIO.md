@@ -11,8 +11,8 @@
 # Relatório Técnico do Projeto: Chat Cliente-Servidor
 
 ### **Curso:** Bacharelado em Engenharia da Computação
-### **Disciplina:** Redes de Computadores (UAB00078)
-### **Professor:** Ygor Amaral Barbosa Leite de Sena
+### **Disciplina:** Redes de Computadores
+### **Professor:** Ygor Amaral
 
 ---
 

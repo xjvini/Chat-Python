@@ -31,8 +31,8 @@ class ChatClient:
         
         self.ui_queue = queue.Queue()
         
-        self.current_room = "Geral"
-        self.private_chat_target = None
+        self.chat_notebook = None
+        self.chat_tabs = {}
         
         self.last_ping_time = 0
         self.ping_interval = 30
@@ -83,10 +83,14 @@ class ChatClient:
         left_panel.rowconfigure(0, weight=1)
         left_panel.columnconfigure(0, weight=1)
 
-        self.chat_display = scrolledtext.ScrolledText(left_panel, state='disabled', wrap=tk.WORD, font=('Consolas', 10))
-        self.chat_display.grid(row=0, column=0, sticky='nsew')
+        self.chat_notebook = ttk.Notebook(left_panel)
+        self.chat_notebook.grid(row=0, column=0, sticky='nsew')
+        self.chat_notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
+        self.chat_notebook.bind("<Button-2>", self.on_middle_click_close)
+
         self.typing_label = ttk.Label(left_panel, text="", foreground="gray")
         self.typing_label.grid(row=1, column=0, sticky='w', padx=5)
+        
         input_frame = ttk.Frame(left_panel)
         input_frame.grid(row=2, column=0, sticky='ew', pady=5)
         input_frame.columnconfigure(0, weight=1)
@@ -110,14 +114,9 @@ class ChatClient:
         users_tab.rowconfigure(1, weight=1)
         users_tab.columnconfigure(0, weight=1)
         
-        
-        # Adiciona um botão para voltar ao chat geral.
         top_users_frame = ttk.Frame(users_tab)
         top_users_frame.grid(row=0, column=0, sticky='ew')
-        ttk.Label(top_users_frame, text="Usuários:", font=('Arial', 10, 'bold')).pack(side=tk.LEFT)
-        self.general_chat_button = ttk.Button(top_users_frame, text="Voltar para Geral", command=self.go_to_general_chat)
-        self.general_chat_button.pack(side=tk.RIGHT)
-        self.general_chat_button.config(state=tk.DISABLED)
+        ttk.Label(top_users_frame, text="Usuários Online/Offline:", font=('Arial', 10, 'bold')).pack(side=tk.LEFT)
 
         self.users_listbox = tk.Listbox(users_tab, font=('Arial', 9))
         self.users_listbox.grid(row=1, column=0, sticky='nsew', pady=(5,0))
@@ -129,7 +128,7 @@ class ChatClient:
     def setup_status_bar(self):
         status_frame = ttk.Frame(self.root, relief=tk.SUNKEN)
         status_frame.pack(side=tk.BOTTOM, fill=tk.X)
-        self.status_label = ttk.Label(status_frame, text="Desconectado", anchor=tk.W)
+        self.status_label = ttk.Label(status_frame, text="v2.5.1", anchor=tk.W)
         self.status_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         self.room_label = ttk.Label(status_frame, text="Sala: N/A", anchor=tk.E)
         self.room_label.pack(side=tk.RIGHT, padx=5)
@@ -145,7 +144,8 @@ class ChatClient:
                 elif action == 'registration_success':
                     messagebox.showinfo("Info", data['message'])
                     self.set_login_buttons_state('normal')
-                elif action == 'display_message': self._display_message(data['text'])
+                elif action == 'display_message': self._display_message(data['target_tab'], data['text'])
+                elif action == 'create_tab': self._create_chat_tab(data['name'])
                 elif action == 'update_users': self._update_user_list(data['users'])
                 elif action == 'update_typing': self.typing_label.config(text=data['text'])
                 elif action == 'reset_to_login': self._reset_to_login_view(data.get("message"))
@@ -218,16 +218,16 @@ class ChatClient:
         
         self.login_frame.pack_forget()
         self.chat_frame.pack(fill=tk.BOTH, expand=True)
-        self.root.title(f"Chat Client - {self.username}")
+        self.root.title(f"Chat UABJ - {self.username}")
         self.set_login_buttons_state('normal')
-        self.go_to_general_chat()
+        
         self.message_entry.focus()
         
-        # Inicia threads de comunicação
+        self._create_chat_tab("Geral")
+
         threading.Thread(target=self._receive_messages, daemon=True, name="ReceiverThread").start()
         threading.Thread(target=self._ping_handler, daemon=True, name="PingThread").start()
         
-        # Pede a lista de usuários ao servidor
         self.send_json({"type": "USERLIST"})
 
     def _receive_messages(self):
@@ -251,17 +251,28 @@ class ChatClient:
 
     def process_server_message(self, msg):
         msg_type = msg.get("type", "").lower()
+        target_tab = "Geral"
+        text = ""
 
         if msg_type in ["public", "room_message", "private", "system"]:
-            if msg_type == "public": text = f"[{msg.get('timestamp')}] {msg.get('sender')}: {msg.get('message')}"
-            elif msg_type == "room_message": text = f"[{msg.get('room')} - {msg.get('timestamp')}] {msg.get('sender')}: {msg.get('message')}"
-            elif msg_type == "private": text = f"<{msg.get('sender')} para você>: {msg.get('message')}"
-            else: text = f"[SISTEMA] {msg.get('message')}"
-            self._queue_ui_update('display_message', text=text)
+            if msg_type == "public" or (msg_type == "room_message" and msg.get('room') == 'Geral'):
+                target_tab = "Geral"
+                text = f"[{msg.get('timestamp')}] {msg.get('sender')}: {msg.get('message')}"
+            elif msg_type == "private":
+                sender = msg.get('sender')
+                target_tab = sender
+                if sender not in self.chat_tabs:
+                    self._queue_ui_update('create_tab', name=sender)
+                text = f"<{sender} para você>: {msg.get('message')}"
+            elif msg_type == "system":
+                 text = f"[SISTEMA] {msg.get('message')}"
+            
+            if text: self._queue_ui_update('display_message', target_tab=target_tab, text=text)
 
         elif msg_type == "userlist": self._queue_ui_update('update_users', users=msg.get("users", []))
         elif msg_type == "typing":
-            if self.private_chat_target == msg.get('sender'):
+            active_chat = self._get_active_chat_name()
+            if active_chat == msg.get('sender'):
                 status = f"{msg.get('sender')} está digitando..." if msg.get("status") else ""
                 self._queue_ui_update('update_typing', text=status)
         elif msg_type == "pong": self.last_ping_time = time.time()
@@ -288,26 +299,21 @@ class ChatClient:
     def send_message(self, event=None):
         message = self.message_entry.get().strip()
         if not message: return
+
+        active_chat = self._get_active_chat_name()
+        if not active_chat: return
         
         msg_data = {"message": message}
-        if self.private_chat_target:
-            msg_data.update({"type": "PRIVATE", "recipient": self.private_chat_target})
-            text = f"<Você para {self.private_chat_target}>: {message}"
-            self._display_message(text)
-        else:
-            msg_data.update({"type": "ROOM_MESSAGE", "room": self.current_room})
+        if active_chat == "Geral":
+            msg_data.update({"type": "PUBLIC", "message": message})
+        else: # Chat Privado
+            msg_data.update({"type": "PRIVATE", "recipient": active_chat})
+            text = f"<Você para {active_chat}>: {message}"
+            self._display_message(active_chat, text)
         
         if self.send_json(msg_data):
             self.message_entry.delete(0, tk.END)
         self.handle_typing_stop()
-
-    def go_to_general_chat(self):
-        self.private_chat_target = None
-        self.current_room = "Geral"
-        self._update_room_status()
-        self._queue_ui_update('display_message', text="[SISTEMA] Você voltou para o chat Geral.")
-        self.general_chat_button.config(state=tk.DISABLED)
-        self.typing_label.config(text="")
 
     def start_private_chat(self, event=None):
         selection = self.users_listbox.curselection()
@@ -320,42 +326,122 @@ class ChatClient:
             messagebox.showinfo("Aviso", "Você não pode iniciar um chat consigo mesmo.")
             return
         
+        self._create_chat_tab(target_user)
+        self._display_message(target_user, f"[SISTEMA] Chat privado com {target_user} iniciado.")
         if "offline" in status:
-            messagebox.showinfo("Aviso", f"{target_user} está offline. Sua mensagem será entregue quando ele(a) se conectar.")
-
-        self.private_chat_target = target_user
-        self.current_room = None
-        self._update_room_status()
-        self._queue_ui_update('display_message', text=f"[SISTEMA] Chat privado com {target_user} iniciado. Clique em 'Voltar para Geral' para sair.")
-        self.general_chat_button.config(state=tk.NORMAL)
+            self._display_message(target_user, f"[SISTEMA] {target_user} está offline. Sua mensagem será entregue quando ele(a) se conectar.")
 
     def handle_typing_start(self, event=None):
+        active_chat = self._get_active_chat_name()
+        if not active_chat or active_chat == "Geral": return
+
         if self.typing_timer:
             self.root.after_cancel(self.typing_timer)
-        elif self.private_chat_target:
-            self.send_json({"type": "TYPING_START", "recipient": self.private_chat_target})
+        else:
+            self.send_json({"type": "TYPING_START", "recipient": active_chat})
         self.typing_timer = self.root.after(2000, self.handle_typing_stop)
 
     def handle_typing_stop(self):
+        active_chat = self._get_active_chat_name()
+        if not active_chat or active_chat == "Geral": return
+
         if self.typing_timer:
             self.root.after_cancel(self.typing_timer)
             self.typing_timer = None
-            if self.private_chat_target:
-                self.send_json({"type": "TYPING_STOP", "recipient": self.private_chat_target})
+            if self.connected:
+                self.send_json({"type": "TYPING_STOP", "recipient": active_chat})
 
-    def _display_message(self, message):
-        self.chat_display.config(state='normal')
-        self.chat_display.insert(tk.END, message + "\n")
-        self.chat_display.config(state='disabled')
-        self.chat_display.see(tk.END)
+    def on_tab_changed(self, event):
+        self._update_room_status()
+        self.handle_typing_stop()
+
+    def on_middle_click_close(self, event):
+        try:
+            # Identifica qual aba está sob o cursor
+            tab_index = self.chat_notebook.index(f"@{event.x},{event.y}")
+            # Pega o nome da aba a partir do seu índice
+            tab_name = self.chat_notebook.tab(tab_index, "text")
+            
+            if tab_name != "Geral":
+                self._close_tab(tab_name)
+        except tk.TclError:
+            pass # Clicou fora de uma aba
+            
+    def _create_chat_tab(self, name):
+        if name in self.chat_tabs:
+            self.chat_notebook.select(self.chat_tabs[name]["frame"])
+            return
+
+        # O Frame principal que contém todo o conteúdo da aba
+        content_frame = ttk.Frame(self.chat_notebook)
+        content_frame.pack(fill="both", expand=True)
+
+        # Adiciona a aba ao notebook com o texto normal
+        self.chat_notebook.add(content_frame, text=name)
+        
+        # --- NOVA ABORDAGEM PARA O BOTÃO DE FECHAR ---
+        # Apenas para abas privadas, adiciona uma barra no topo com o botão
+        if name != "Geral":
+            top_bar = ttk.Frame(content_frame)
+            top_bar.pack(fill='x', padx=2, pady=2)
+            
+            # Label para dar um espaço e empurrar o botão para a direita
+            ttk.Label(top_bar, text="").pack(side='left', expand=True) 
+
+            close_button = ttk.Button(top_bar, text="Encerrar",
+                                      command=lambda n=name: self._close_tab(n))
+            close_button.pack(side="right")
+
+        # O display do chat é adicionado depois da barra (se houver)
+        chat_display = scrolledtext.ScrolledText(content_frame, state='disabled', wrap=tk.WORD, font=('Consolas', 10))
+        chat_display.pack(fill="both", expand=True, padx=2, pady=(0, 2))
+
+        # Armazena as referências
+        self.chat_tabs[name] = {"frame": content_frame, "display": chat_display}
+        self.chat_notebook.select(content_frame)
+        self._update_room_status()
+
+    def _close_tab(self, name):
+        if name == "Geral" or name not in self.chat_tabs:
+            return
+        
+        frame_to_close = self.chat_tabs[name]["frame"]
+        self.chat_notebook.forget(frame_to_close)
+        
+        del self.chat_tabs[name]
+        
+        if "Geral" in self.chat_tabs:
+            geral_frame = self.chat_tabs["Geral"]["frame"]
+            self.chat_notebook.select(geral_frame)
+        
+        logging.info(f"Aba '{name}' fechada.")
+
+    def _get_active_chat_name(self):
+        if not self.chat_notebook or not self.chat_notebook.tabs():
+            return None
+        try:
+            # Agora podemos obter o nome diretamente da propriedade 'text' da aba
+            selected_frame = self.chat_notebook.select()
+            return self.chat_notebook.tab(selected_frame, "text")
+        except tk.TclError:
+            return None
+        return None
+
+    def _display_message(self, target_tab, message):
+        if target_tab in self.chat_tabs:
+            display_widget = self.chat_tabs[target_tab]["display"]
+            display_widget.config(state='normal')
+            display_widget.insert(tk.END, message + "\n")
+            display_widget.config(state='disabled')
+            display_widget.see(tk.END)
+        else:
+            logging.warning(f"Tentativa de exibir mensagem em uma aba inexistente: {target_tab}")
         
     def _update_user_list(self, users):
         self.users_listbox.delete(0, tk.END)
-        online_users = []
-        offline_users = []
+        online_users, offline_users = [], []
         for user_str in users:
-            if ":online" in user_str: online_users.append(user_str)
-            else: offline_users.append(user_str)
+            (online_users if ":online" in user_str else offline_users).append(user_str)
 
         for user in sorted(online_users):
             self.users_listbox.insert(tk.END, user)
@@ -365,10 +451,11 @@ class ChatClient:
             self.users_listbox.itemconfig(tk.END, {'fg': 'gray'})
 
     def _update_room_status(self):
-        if self.private_chat_target:
-            self.room_label.config(text=f"Sala: PV com {self.private_chat_target}")
+        active_chat = self._get_active_chat_name()
+        if active_chat:
+            self.room_label.config(text=f"Chat: {active_chat}")
         else:
-            self.room_label.config(text=f"Sala: {self.current_room}")
+            self.room_label.config(text="Sala: N/A")
 
     def set_login_buttons_state(self, state):
         self.login_button.config(state=state)
@@ -376,6 +463,11 @@ class ChatClient:
 
     def _reset_to_login_view(self, message):
         self.chat_frame.pack_forget()
+        if self.chat_notebook:
+            for tab in self.chat_notebook.tabs():
+                self.chat_notebook.forget(tab)
+        self.chat_tabs.clear()
+        
         self.login_frame.pack(pady=50, padx=20, fill="both", expand=True)
         self.root.title("Chat Client - Desconectado")
         self.set_login_buttons_state('normal')

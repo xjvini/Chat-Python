@@ -357,46 +357,45 @@ class ChatClient:
 
     def on_middle_click_close(self, event):
         try:
-            # Identifica qual aba está sob o cursor
+            
             tab_index = self.chat_notebook.index(f"@{event.x},{event.y}")
-            # Pega o nome da aba a partir do seu índice
+            
             tab_name = self.chat_notebook.tab(tab_index, "text")
             
             if tab_name != "Geral":
                 self._close_tab(tab_name)
         except tk.TclError:
-            pass # Clicou fora de uma aba
+            pass 
             
     def _create_chat_tab(self, name):
         if name in self.chat_tabs:
             self.chat_notebook.select(self.chat_tabs[name]["frame"])
             return
 
-        # O Frame principal que contém todo o conteúdo da aba
+        
         content_frame = ttk.Frame(self.chat_notebook)
         content_frame.pack(fill="both", expand=True)
 
-        # Adiciona a aba ao notebook com o texto normal
+        
         self.chat_notebook.add(content_frame, text=name)
         
-        # --- NOVA ABORDAGEM PARA O BOTÃO DE FECHAR ---
-        # Apenas para abas privadas, adiciona uma barra no topo com o botão
+        
         if name != "Geral":
             top_bar = ttk.Frame(content_frame)
             top_bar.pack(fill='x', padx=2, pady=2)
             
-            # Label para dar um espaço e empurrar o botão para a direita
+            
             ttk.Label(top_bar, text="").pack(side='left', expand=True) 
 
             close_button = ttk.Button(top_bar, text="Encerrar",
                                       command=lambda n=name: self._close_tab(n))
             close_button.pack(side="right")
 
-        # O display do chat é adicionado depois da barra (se houver)
+        
         chat_display = scrolledtext.ScrolledText(content_frame, state='disabled', wrap=tk.WORD, font=('Consolas', 10))
         chat_display.pack(fill="both", expand=True, padx=2, pady=(0, 2))
 
-        # Armazena as referências
+        
         self.chat_tabs[name] = {"frame": content_frame, "display": chat_display}
         self.chat_notebook.select(content_frame)
         self._update_room_status()
@@ -420,7 +419,7 @@ class ChatClient:
         if not self.chat_notebook or not self.chat_notebook.tabs():
             return None
         try:
-            # Agora podemos obter o nome diretamente da propriedade 'text' da aba
+            
             selected_frame = self.chat_notebook.select()
             return self.chat_notebook.tab(selected_frame, "text")
         except tk.TclError:
